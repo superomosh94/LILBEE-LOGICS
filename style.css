@@ -506,3 +506,90 @@ body.auth {
   opacity: 0.8;
 }
 
+
+body.dashboard {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  color: #fff;
+  display: flex;
+  height: 100vh;
+}
+
+.glass-card {
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.sidebar {
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile {
+  text-align: center;
+}
+
+.avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: #00c6ff;
+  margin: auto;
+}
+
+.status {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.status.online { color: #4caf50; }
+.status.offline { color: #aaa; }
+
+.menu button {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.menu .danger {
+  background: #ff4d4d;
+  color: #fff;
+}
+
+.main {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.tab {
+  display: none;
+}
+.tab.active {
+  display: block;
+}
+
+textarea, input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  margin-bottom: 10px;
+}
+
+button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+
