@@ -1,70 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard | Lil-Bee Logics</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>Dashboard | Lil-Bee Logics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body class="dashboard">
 
-  <!-- NAVIGATION -->
-  <header class="nav-wrapper">
-    <nav class="nav">
-      <div class="logo">Lil-Bee<span>Logics</span></div>
-      <ul class="nav-links">
-        <li><a href="#overview">Overview</a></li>
-        <li><a href="#users">Users</a></li>
-        <li><a href="#chat">Chat</a></li>
-        <li><a id="logoutBtn" class="nav-btn" href="#">Logout</a></li>
-      </ul>
+  <!-- SIDEBAR -->
+  <aside class="sidebar glass-card">
+    <div class="profile">
+      <div class="avatar"></div>
+      <h3 id="userEmail">Loading...</h3>
+      <span id="userStatus" class="status online">Online</span>
+    </div>
+
+    <nav class="menu">
+      <button data-tab="feed">Feed</button>
+      <button data-tab="services">Services</button>
+      <button data-tab="chat">Chat</button>
+      <button id="logoutBtn" class="danger">Logout</button>
     </nav>
-  </header>
+  </aside>
 
-  <!-- DASHBOARD OVERVIEW -->
-  <section id="overview" class="dashboard-hero card glass-card">
-    <h1>Admin Dashboard</h1>
-    <p>Manage users, monitor activity, and chat with clients in real-time.</p>
+  <!-- MAIN CONTENT -->
+  <main class="main">
 
-    <div class="dashboard-stats">
-      <div class="stat-card glass-card">
-        <h3>Total Users</h3>
-        <p id="totalUsers">0</p>
+    <!-- FEED -->
+    <section id="feed" class="tab active glass-card">
+      <h2>Community Feed</h2>
+
+      <textarea id="postContent" placeholder="Share something..."></textarea>
+      <button id="postBtn">Post</button>
+
+      <div id="posts"></div>
+    </section>
+
+    <!-- SERVICES -->
+    <section id="services" class="tab glass-card">
+      <h2>Request a Service</h2>
+
+      <input type="text" id="serviceType" placeholder="Service type">
+      <textarea id="serviceDesc" placeholder="Describe what you need"></textarea>
+      <button id="requestServiceBtn">Submit Request</button>
+
+      <h3>Your Requests</h3>
+      <div id="serviceList"></div>
+    </section>
+
+    <!-- CHAT -->
+    <section id="chat" class="tab glass-card">
+      <h2>Chat</h2>
+
+      <div class="chat-box" id="chatBox"></div>
+
+      <div class="chat-input">
+        <input type="text" id="chatMessage" placeholder="Type a message">
+        <button id="sendMessageBtn">Send</button>
       </div>
-      <div class="stat-card glass-card">
-        <h3>Online Users</h3>
-        <p id="onlineUsers">0</p>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- USERS LIST -->
-  <section id="users" class="dashboard-users card glass-card">
-    <h2>Users</h2>
-    <ul id="usersList">
-      <!-- Dynamically filled with JS -->
-    </ul>
-  </section>
+  </main>
 
-  <!-- CHAT SECTION -->
-  <section id="chat" class="dashboard-chat card glass-card">
-    <h2>Live Chat with Users</h2>
-    <div class="chat-box" id="chatBox"></div>
-    <form id="chatForm">
-      <input type="text" id="chatMessage" placeholder="Type a message..." required />
-      <button type="submit">Send</button>
-    </form>
-  </section>
-
-  <!-- FOOTER -->
-  <footer class="footer card glass-card">
-    <div class="footer-content">
-      <p>© 2025 Lil-Bee Logics. All rights reserved.</p>
-    </div>
-  </footer>
-
-  <!-- DASHBOARD JS -->
   <script type="module" src="dashboard.js"></script>
-
 </body>
 </html>
