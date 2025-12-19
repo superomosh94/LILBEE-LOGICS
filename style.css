@@ -592,4 +592,24 @@ button {
   cursor: pointer;
 }
 
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #00e5ff;
+  color: #000;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+button.approve {
+  background: #4caf50;
+  color: #fff;
+  margin-right: 6px;
+}
+
+button.danger {
+  background: #f44336;
+  color: #fff;
+}
+
 
