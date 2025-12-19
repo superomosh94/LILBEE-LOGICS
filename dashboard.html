@@ -12,18 +12,25 @@
   <!-- SIDEBAR -->
   <aside class="sidebar glass-card">
     <div class="profile">
-      <div class="avatar" id="userAvatar"></div>
+      <div id="userAvatar" class="avatar"></div>
       <h3 id="userEmail">Loading...</h3>
       <span id="userStatus" class="status online">Online</span>
     </div>
 
     <nav class="menu">
-      <button data-tab="feed" class="tab active">Feed</button>
+      <button data-tab="feed" class="tab">Feed</button>
       <button data-tab="services" class="tab">Services</button>
       <button data-tab="chat" class="tab">Chat</button>
-      <button data-tab="profile" class="tab">Profile</button>
       <button id="logoutBtn" class="danger">Logout</button>
     </nav>
+
+    <div class="profile-update glass-card">
+      <h4>Update Profile</h4>
+      <input type="text" id="updateName" placeholder="Name">
+      <input type="email" id="updateEmail" placeholder="Email">
+      <input type="text" id="updateAvatar" placeholder="Avatar URL">
+      <button id="updateProfileBtn">Update</button>
+    </div>
   </aside>
 
   <!-- MAIN CONTENT -->
@@ -32,17 +39,14 @@
     <!-- FEED -->
     <section id="feed" class="tab active glass-card">
       <h2>Community Feed</h2>
-
       <textarea id="postContent" placeholder="Share something..."></textarea>
       <button id="postBtn">Post</button>
-
-      <div id="posts" class="feed-posts"></div>
+      <div id="posts"></div>
     </section>
 
     <!-- SERVICES -->
-    <section id="services" class="tab glass-card">
+    <section id="services" class="tab glass-card" hidden>
       <h2>Request a Service</h2>
-
       <input type="text" id="serviceType" placeholder="Service type">
       <textarea id="serviceDesc" placeholder="Describe what you need"></textarea>
       <button id="requestServiceBtn">Submit Request</button>
@@ -52,56 +56,12 @@
     </section>
 
     <!-- CHAT -->
-    <section id="chat" class="tab glass-card">
+    <section id="chat" class="tab glass-card" hidden>
       <h2>Chat</h2>
-
       <div class="chat-box" id="chatBox"></div>
-
       <div class="chat-input">
         <input type="text" id="chatMessage" placeholder="Type a message">
         <button id="sendMessageBtn">Send</button>
-      </div>
-    </section>
-
-    <!-- PROFILE -->
-    <section id="profile" class="tab glass-card">
-      <h2>Profile</h2>
-
-      <div class="profile-update">
-        <label for="updateName">Name</label>
-        <input type="text" id="updateName" placeholder="Your name">
-
-        <label for="updateEmail">Email</label>
-        <input type="email" id="updateEmail" placeholder="Your email">
-
-        <label for="updateAvatar">Avatar URL</label>
-        <input type="text" id="updateAvatar" placeholder="Avatar image URL">
-
-        <button id="updateProfileBtn">Update Profile</button>
-      </div>
-    </section>
-
-    <!-- SERVICES EXPLAINED -->
-    <section id="servicesInfo" class="tab glass-card">
-      <h2>Our Services</h2>
-
-      <div class="services-grid">
-        <div class="service-card">
-          <h3>Web Development</h3>
-          <p>Modern websites, scalable apps, and responsive designs for your business.</p>
-        </div>
-        <div class="service-card">
-          <h3>Graphic Design</h3>
-          <p>Branding, UI/UX, and marketing materials designed to impress.</p>
-        </div>
-        <div class="service-card">
-          <h3>Cybersecurity</h3>
-          <p>Protect your data and infrastructure with advanced security solutions.</p>
-        </div>
-        <div class="service-card">
-          <h3>Virtual Assistance</h3>
-          <p>Reliable admin and tech support to keep your operations running smoothly.</p>
-        </div>
       </div>
     </section>
 
