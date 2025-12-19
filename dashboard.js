@@ -1,4 +1,3 @@
-
 // -------------------- IMPORT FIREBASE --------------------
 import { auth, db, rtdb } from "./firebase.js";
 import {
@@ -6,11 +5,11 @@ import {
   doc,
   setDoc,
   addDoc,
-  getDocs,
   updateDoc,
   serverTimestamp,
   query,
   orderBy,
+  onSnapshot,
   getDoc
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { ref, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
@@ -43,7 +42,6 @@ auth.onAuthStateChanged(async user => {
   const snap = await getDoc(userRef);
 
   if (!snap.exists()) {
-    // Create default user doc if missing
     await setDoc(userRef, {
       email: user.email,
       name: "",
@@ -54,12 +52,15 @@ auth.onAuthStateChanged(async user => {
     });
   }
 
-  const profile = snap.exists() ? snap.data() : {};
-  document.getElementById("userEmail").innerText = user.email;
-  document.getElementById("updateName").value = profile.name || "";
-  document.getElementById("updateEmail").value = profile.email || user.email;
-  document.getElementById("updateAvatar").value = profile.avatar || "";
-  if (profile.avatar) document.getElementById("userAvatar").style.backgroundImage = `url(${profile.avatar})`;
+  // Real-time profile updates
+  onSnapshot(userRef, snapshot => {
+    const data = snapshot.data();
+    document.getElementById("userEmail").innerText = data.email || user.email;
+    document.getElementById("updateName").value = data.name || "";
+    document.getElementById("updateEmail").value = data.email || user.email;
+    document.getElementById("updateAvatar").value = data.avatar || "";
+    if (data.avatar) document.getElementById("userAvatar").style.backgroundImage = `url(${data.avatar})`;
+  });
 
   setupPresence(user.uid);
 });
@@ -80,11 +81,6 @@ document.getElementById("updateProfileBtn").addEventListener("click", async () =
     email: document.getElementById("updateEmail").value,
     avatar: document.getElementById("updateAvatar").value
   });
-
-  document.getElementById("userEmail").innerText = document.getElementById("updateEmail").value;
-  const avatar = document.getElementById("updateAvatar").value;
-  if (avatar) document.getElementById("userAvatar").style.backgroundImage = `url(${avatar})`;
-
   alert("Profile updated!");
 });
 
@@ -104,11 +100,26 @@ function setupPresence(uid) {
 }
 
 // -------------------- COMMUNITY FEED --------------------
+const postsRef = collection(db, "posts");
+const feedQuery = query(postsRef, orderBy("timestamp", "desc"));
+
+onSnapshot(feedQuery, snapshot => {
+  const postsDiv = document.getElementById("posts");
+  postsDiv.innerHTML = "";
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    const div = document.createElement("div");
+    div.className = "feed-post glass-card";
+    div.innerHTML = `<strong>${data.email}</strong><p>${data.content}</p>`;
+    postsDiv.appendChild(div);
+  });
+});
+
 document.getElementById("postBtn").addEventListener("click", async () => {
   const content = document.getElementById("postContent").value.trim();
   if (!content) return;
 
-  await addDoc(collection(db, "posts"), {
+  await addDoc(postsRef, {
     uid: auth.currentUser.uid,
     email: auth.currentUser.email,
     content,
@@ -116,33 +127,30 @@ document.getElementById("postBtn").addEventListener("click", async () => {
   });
 
   document.getElementById("postContent").value = "";
-  loadFeedPosts();
 });
 
-async function loadFeedPosts() {
-  const postsDiv = document.getElementById("posts");
-  postsDiv.innerHTML = "";
-
-  const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
-  const snap = await getDocs(q);
-
-  snap.forEach(docSnap => {
-    const data = docSnap.data();
-    const div = document.createElement("div");
-    div.className = "feed-post glass-card";
-    div.innerHTML = `<strong>${data.email}</strong><p>${data.content}</p>`;
-    postsDiv.appendChild(div);
-  });
-}
-loadFeedPosts();
-
 // -------------------- SERVICE REQUESTS --------------------
+const serviceRef = collection(db, "serviceRequests");
+onSnapshot(serviceRef, snapshot => {
+  const listDiv = document.getElementById("serviceList");
+  listDiv.innerHTML = "";
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    if (data.uid === auth.currentUser.uid) {
+      const div = document.createElement("div");
+      div.className = "glass-card";
+      div.innerHTML = `<strong>${data.type}</strong><p>${data.desc}</p><small>Status: ${data.status}</small>`;
+      listDiv.appendChild(div);
+    }
+  });
+});
+
 document.getElementById("requestServiceBtn").addEventListener("click", async () => {
   const type = document.getElementById("serviceType").value.trim();
   const desc = document.getElementById("serviceDesc").value.trim();
   if (!type || !desc) return;
 
-  await addDoc(collection(db, "serviceRequests"), {
+  await addDoc(serviceRef, {
     uid: auth.currentUser.uid,
     type,
     desc,
@@ -152,34 +160,30 @@ document.getElementById("requestServiceBtn").addEventListener("click", async () 
 
   document.getElementById("serviceType").value = "";
   document.getElementById("serviceDesc").value = "";
-  loadUserServiceRequests();
 });
 
-async function loadUserServiceRequests() {
-  const listDiv = document.getElementById("serviceList");
-  listDiv.innerHTML = "";
-
-  const snap = await getDocs(collection(db, "serviceRequests"));
-  snap.forEach(docSnap => {
-    const data = docSnap.data();
-    if (data.uid === auth.currentUser.uid) {
-      const div = document.createElement("div");
-      div.className = "glass-card";
-      div.innerHTML = `<strong>${data.type}</strong><p>${data.desc}</p><small>Status: ${data.status}</small>`;
-      listDiv.appendChild(div);
-    }
-  });
-}
-loadUserServiceRequests();
-
 // -------------------- CHAT --------------------
+const chatRef = collection(db, "chat");
+const chatQuery = query(chatRef, orderBy("timestamp", "asc"));
 const chatBox = document.getElementById("chatBox");
+
+onSnapshot(chatQuery, snapshot => {
+  chatBox.innerHTML = "";
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    const div = document.createElement("div");
+    div.className = data.uid === auth.currentUser.uid ? "chat-message self" : "chat-message";
+    div.innerHTML = `<strong>${data.email}:</strong> ${data.msg}`;
+    chatBox.appendChild(div);
+  });
+  chatBox.scrollTop = chatBox.scrollHeight;
+});
 
 document.getElementById("sendMessageBtn").addEventListener("click", async () => {
   const msg = document.getElementById("chatMessage").value.trim();
   if (!msg) return;
 
-  await addDoc(collection(db, "chat"), {
+  await addDoc(chatRef, {
     uid: auth.currentUser.uid,
     email: auth.currentUser.email,
     msg,
@@ -187,21 +191,5 @@ document.getElementById("sendMessageBtn").addEventListener("click", async () => 
   });
 
   document.getElementById("chatMessage").value = "";
-  loadChatMessages();
 });
 
-async function loadChatMessages() {
-  chatBox.innerHTML = "";
-  const q = query(collection(db, "chat"), orderBy("timestamp", "asc"));
-  const snap = await getDocs(q);
-
-  snap.forEach(docSnap => {
-    const data = docSnap.data();
-    const div = document.createElement("div");
-    div.className = data.uid === auth.currentUser.uid ? "chat-message self" : "chat-message";
-    div.innerHTML = `<strong>${data.email}:</strong> ${data.msg}`;
-    chatBox.appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight;
-  });
-}
-loadChatMessages();
