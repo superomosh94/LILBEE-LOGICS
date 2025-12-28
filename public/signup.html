@@ -30,7 +30,12 @@
       <input type="tel" id="phone" placeholder="+254..." required />
 
       <label for="password">Password</label>
-      <input type="password" id="password" placeholder="••••••••" required />
+      <div style="position: relative;">
+        <input type="password" id="password" placeholder="••••••••" required style="padding-right: 45px;" />
+        <button type="button" id="togglePassword"
+          style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; font-size: 18px;"
+          title="Show/Hide Password">👁️</button>
+      </div>
 
       <button type="submit">Register</button>
     </form>
@@ -45,14 +50,26 @@
     import { localAuth } from "./local-auth.js";
 
     const form = document.getElementById("signupForm");
+    const passwordInput = document.getElementById("password");
+    const toggleBtn = document.getElementById("togglePassword");
+
+    // Password visibility toggle
+    toggleBtn.addEventListener("click", () => {
+      const type = passwordInput.type === "password" ? "text" : "password";
+      passwordInput.type = type;
+      toggleBtn.textContent = type === "password" ? "👁️" : "🙈";
+    });
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const username = document.getElementById("username").value;
       const email = document.getElementById("email").value;
+      const phone = document.getElementById("phone").value;
       const password = document.getElementById("password").value;
 
       try {
-        await localAuth.signup(email, password);
+        await localAuth.signup(email, password, username, phone);
+        alert("Account created successfully!");
         window.location.href = "dashboard.html";
       } catch (error) {
         console.error("Signup failed:", error.message);

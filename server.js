@@ -1,16 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { db, auth } from './config/firebase.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_FILE = path.join(__dirname, 'db.json');
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -20,214 +19,337 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-async function readDB() {
-    return await fs.readJson(DB_FILE);
-}
-
-async function writeDB(data) {
-    await fs.writeJson(DB_FILE, data, { spaces: 2 });
-}
-
+// Auth Routes
 app.post('/api/auth/signup', async (req, res) => {
-    const { email, password } = req.body;
-    const db = await readDB();
+    try {
+        const { email, password, name, phone } = req.body;
 
-    if (db.users.find(u => u.email === email)) {
-        return res.status(400).json({ error: "Email already exists" });
+        // Check if user already exists
+        const usersRef = db.ref('users');
+        const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+        if (snapshot.exists()) {
+            return res.status(400).json({ error: "Email already exists" });
+        }
+
+        // Create Firebase Auth user
+        const userRecord = await auth.createUser({
+            email,
+            password
+        });
+
+        // Create user in Realtime Database
+        const newUser = {
+            uid: userRecord.uid,
+            email,
+            name: name || "",
+            phone: phone || "",
+            role: "user",
+            avatar: "",
+            isBanned: false,
+            joinedAt: Date.now()
+        };
+
+        await usersRef.child(userRecord.uid).set(newUser);
+
+        res.json(newUser);
+    } catch (error) {
+        console.error('Signup error:', error);
+        res.status(500).json({ error: error.message });
     }
-
-    const newUser = {
-        uid: "user_" + Date.now(),
-        email,
-        password,
-        role: "user",
-        name: "",
-        avatar: "",
-        isBanned: false,
-        joinedAt: Date.now()
-    };
-
-    db.users.push(newUser);
-    await writeDB(db);
-    res.json(newUser);
 });
 
 app.post('/api/auth/login', async (req, res) => {
-    const { email, password } = req.body;
-    const db = await readDB();
-    const user = db.users.find(u => u.email === email && u.password === password);
+    try {
+        const { email, password } = req.body;
 
-    if (!user) {
-        return res.status(401).json({ error: "Invalid credentials" });
+        // Get user by email
+        const usersRef = db.ref('users');
+        const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+        if (!snapshot.exists()) {
+            return res.status(401).json({ error: "Invalid credentials" });
+        }
+
+        const users = snapshot.val();
+        const user = Object.values(users)[0];
+
+        res.json(user);
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: error.message });
     }
-
-    res.json(user);
 });
 
+// Posts Routes
 app.get('/api/posts', async (req, res) => {
-    const db = await readDB();
-    res.json(db.posts);
+    try {
+        const postsRef = db.ref('posts');
+        const snapshot = await postsRef.orderByChild('timestamp').once('value');
+
+        if (!snapshot.exists()) {
+            return res.json([]);
+        }
+
+        const posts = [];
+        snapshot.forEach(child => {
+            posts.unshift(child.val()); // Add to beginning for reverse chronological order
+        });
+
+        res.json(posts);
+    } catch (error) {
+        console.error('Get posts error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.post('/api/posts', async (req, res) => {
-    const { uid, email, content } = req.body;
-    const db = await readDB();
+    try {
+        const { uid, email, content } = req.body;
 
-    const user = db.users.find(u => u.uid === uid);
-    if (user && user.isBanned) {
-        return res.status(403).json({ error: "You are banned from posting" });
+        // Check if user is banned
+        const userSnapshot = await db.ref(`users/${uid}`).once('value');
+        if (userSnapshot.exists() && userSnapshot.val().isBanned) {
+            return res.status(403).json({ error: "You are banned from posting" });
+        }
+
+        const newPost = {
+            id: Date.now().toString(),
+            uid,
+            email,
+            content,
+            timestamp: Date.now()
+        };
+
+        await db.ref(`posts/${newPost.id}`).set(newPost);
+        res.json(newPost);
+    } catch (error) {
+        console.error('Create post error:', error);
+        res.status(500).json({ error: error.message });
     }
-
-    const newPost = {
-        id: Date.now().toString(),
-        uid,
-        email,
-        content,
-        timestamp: Date.now()
-    };
-
-    db.posts.unshift(newPost);
-    await writeDB(db);
-    res.json(newPost);
 });
 
 app.delete('/api/posts/:id', async (req, res) => {
-    const { id } = req.params;
-    const db = await readDB();
-    db.posts = db.posts.filter(p => p.id !== id);
-    await writeDB(db);
-    res.json({ success: true });
+    try {
+        const { id } = req.params;
+        await db.ref(`posts/${id}`).remove();
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete post error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
+// Requests Routes
 app.get('/api/requests', async (req, res) => {
-    const { uid } = req.query;
-    const db = await readDB();
+    try {
+        const { uid } = req.query;
+        const requestsRef = db.ref('requests');
 
-    if (uid) {
-        res.json(db.requests.filter(r => r.uid === uid));
-    } else {
-        res.json(db.requests);
+        if (uid) {
+            const snapshot = await requestsRef.orderByChild('uid').equalTo(uid).once('value');
+            const requests = [];
+            if (snapshot.exists()) {
+                snapshot.forEach(child => {
+                    requests.unshift(child.val());
+                });
+            }
+            res.json(requests);
+        } else {
+            const snapshot = await requestsRef.orderByChild('timestamp').once('value');
+            const requests = [];
+            if (snapshot.exists()) {
+                snapshot.forEach(child => {
+                    requests.unshift(child.val());
+                });
+            }
+            res.json(requests);
+        }
+    } catch (error) {
+        console.error('Get requests error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
 app.post('/api/requests', async (req, res) => {
-    const { uid, type, desc } = req.body;
-    const db = await readDB();
+    try {
+        const { uid, type, desc } = req.body;
 
-    const newRequest = {
-        id: Date.now().toString(),
-        uid,
-        type,
-        desc,
-        status: "pending",
-        timestamp: Date.now()
-    };
+        const newRequest = {
+            id: Date.now().toString(),
+            uid,
+            type,
+            desc,
+            status: "pending",
+            timestamp: Date.now()
+        };
 
-    db.requests.unshift(newRequest);
-    await writeDB(db);
-    res.json(newRequest);
-});
-
-app.patch('/api/requests/:id', async (req, res) => {
-    const { id } = req.params;
-    const { status } = req.body;
-    const db = await readDB();
-
-    const reqIdx = db.requests.findIndex(r => r.id === id);
-    if (reqIdx > -1) {
-        db.requests[reqIdx].status = status;
-        await writeDB(db);
-        res.json(db.requests[reqIdx]);
-    } else {
-        res.status(404).json({ error: "Request not found" });
+        await db.ref(`requests/${newRequest.id}`).set(newRequest);
+        res.json(newRequest);
+    } catch (error) {
+        console.error('Create request error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
+app.patch('/api/requests/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        const requestRef = db.ref(`requests/${id}`);
+        const snapshot = await requestRef.once('value');
+
+        if (snapshot.exists()) {
+            await requestRef.update({ status });
+            const updated = await requestRef.once('value');
+            res.json(updated.val());
+        } else {
+            res.status(404).json({ error: "Request not found" });
+        }
+    } catch (error) {
+        console.error('Update request error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Users Routes
 app.get('/api/users', async (req, res) => {
-    const db = await readDB();
-    res.json(db.users);
+    try {
+        const usersRef = db.ref('users');
+        const snapshot = await usersRef.once('value');
+
+        if (!snapshot.exists()) {
+            return res.json([]);
+        }
+
+        const users = [];
+        snapshot.forEach(child => {
+            users.push(child.val());
+        });
+
+        res.json(users);
+    } catch (error) {
+        console.error('Get users error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.patch('/api/users/:uid', async (req, res) => {
-    const { uid } = req.params;
-    const updates = req.body;
-    const db = await readDB();
+    try {
+        const { uid } = req.params;
+        const updates = req.body;
 
-    const userIdx = db.users.findIndex(u => u.uid === uid);
-    if (userIdx > -1) {
-        db.users[userIdx] = { ...db.users[userIdx], ...updates };
-        await writeDB(db);
-        res.json(db.users[userIdx]);
-    } else {
-        if (updates.email) {
-            const newUser = {
-                uid: uid || "user_" + Date.now(),
-                isBanned: false,
-                role: "user",
-                joinedAt: Date.now(),
-                ...updates
-            };
-            db.users.push(newUser);
-            await writeDB(db);
-            res.json(newUser);
+        const userRef = db.ref(`users/${uid}`);
+        const snapshot = await userRef.once('value');
+
+        if (snapshot.exists()) {
+            await userRef.update(updates);
+            const updated = await userRef.once('value');
+            res.json(updated.val());
         } else {
-            res.status(404).json({ error: "User not found" });
+            if (updates.email) {
+                const newUser = {
+                    uid: uid || "user_" + Date.now(),
+                    isBanned: false,
+                    role: "user",
+                    joinedAt: Date.now(),
+                    ...updates
+                };
+                await userRef.set(newUser);
+                res.json(newUser);
+            } else {
+                res.status(404).json({ error: "User not found" });
+            }
         }
+    } catch (error) {
+        console.error('Update user error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
 app.post('/api/users', async (req, res) => {
-    const { email, password } = req.body;
-    const db = await readDB();
+    try {
+        const { email, password } = req.body;
 
-    if (db.users.find(u => u.email === email)) {
-        return res.status(400).json({ error: "Email already exists" });
+        // Check if user exists
+        const usersRef = db.ref('users');
+        const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+        if (snapshot.exists()) {
+            return res.status(400).json({ error: "Email already exists" });
+        }
+
+        const newUser = {
+            uid: "user_" + Date.now(),
+            email,
+            password,
+            role: "user",
+            name: "",
+            avatar: "",
+            isBanned: false,
+            joinedAt: Date.now()
+        };
+
+        await usersRef.child(newUser.uid).set(newUser);
+        res.json(newUser);
+    } catch (error) {
+        console.error('Create user error:', error);
+        res.status(500).json({ error: error.message });
     }
-
-    const newUser = {
-        uid: "user_" + Date.now(),
-        email,
-        password,
-        role: "user",
-        name: "",
-        avatar: "",
-        isBanned: false,
-        joinedAt: Date.now()
-    };
-
-    db.users.push(newUser);
-    await writeDB(db);
-    res.json(newUser);
 });
 
+// Chat Routes
 app.get('/api/chat', async (req, res) => {
-    const db = await readDB();
-    res.json(db.chat);
+    try {
+        const chatRef = db.ref('chat');
+        const snapshot = await chatRef.orderByChild('timestamp').once('value');
+
+        if (!snapshot.exists()) {
+            return res.json([]);
+        }
+
+        const messages = [];
+        snapshot.forEach(child => {
+            messages.push(child.val());
+        });
+
+        res.json(messages);
+    } catch (error) {
+        console.error('Get chat error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.post('/api/chat', async (req, res) => {
-    const { uid, email, msg } = req.body;
-    const db = await readDB();
+    try {
+        const { uid, email, msg } = req.body;
 
-    const newMsg = {
-        id: Date.now().toString(),
-        uid,
-        email,
-        msg,
-        timestamp: Date.now()
-    };
+        const newMsg = {
+            id: Date.now().toString(),
+            uid,
+            email,
+            msg,
+            timestamp: Date.now()
+        };
 
-    db.chat.push(newMsg);
-    await writeDB(db);
-    res.json(newMsg);
+        await db.ref(`chat/${newMsg.id}`).set(newMsg);
+        res.json(newMsg);
+    } catch (error) {
+        console.error('Send chat error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.delete('/api/chat/:id', async (req, res) => {
-    const { id } = req.params;
-    const db = await readDB();
-    db.chat = db.chat.filter(c => c.id !== id);
-    await writeDB(db);
-    res.json({ success: true });
+    try {
+        const { id } = req.params;
+        await db.ref(`chat/${id}`).remove();
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete chat error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Export the app for Vercel

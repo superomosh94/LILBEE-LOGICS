@@ -6,11 +6,11 @@ export const localAuth = {
         return session ? JSON.parse(session) : null;
     },
 
-    async signup(email, password) {
+    async signup(email, password, name = "", phone = "") {
         const res = await fetch(`${API_URL}/api/auth/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password, name, phone })
         });
         if (!res.ok) {
             const err = await res.json();

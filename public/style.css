@@ -514,6 +514,33 @@ body.auth {
   border-color: #ff6b6b;
 }
 
+.password-wrapper {
+  position: relative;
+}
+
+.password-wrapper input {
+  padding-right: 45px !important;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 5px;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+  color: var(--muted);
+}
+
+.password-toggle:hover {
+  opacity: 0.7;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .auth-bars span {
     animation: none;
